@@ -1,6 +1,4 @@
 // src/core/project.service.js
-// Core business logic for the Project Management component
-// This layer knows nothing about HTTP — pure data operations only
 
 import prisma from "../utils/prisma.js";
 import { ROLES, RESTRICTED_VIEW_ROLES } from "../utils/roles.js";
