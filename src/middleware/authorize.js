@@ -1,6 +1,5 @@
 // src/middleware/authorize.js
 // Role-based access control middleware
-// Reusable — pass any list of allowed roles
 
 /**
  * Authorization middleware factory

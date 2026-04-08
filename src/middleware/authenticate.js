@@ -9,10 +9,7 @@
  * request headers directly so you can test without
  * a full auth system.
  *
- * Headers expected:
- *   x-user-id: 1
- *   x-user-role: COMPANY_ADMIN
- *   x-company-id: 1
+
  *
  * In production — replace this with real JWT verification:
  *   const decoded = jwt.verify(token, process.env.JWT_SECRET)
