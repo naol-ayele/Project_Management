@@ -1,6 +1,4 @@
 // src/routes/project.routes.js
-// Express router for all project endpoints
-// authenticate + authorize applied per route
 
 import express from "express";
 import { projectController } from "../core/project.controller.js";
