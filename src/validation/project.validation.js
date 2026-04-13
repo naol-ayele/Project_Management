@@ -59,14 +59,40 @@ export const createProjectSchema = z
 
 export const updateProjectSchema = z
   .object({
-    projectName: z.string().min(2).max(100).optional(),
-    location: z.string().min(2).max(100).optional(),
-    startDate: z.coerce.date().optional(),
-    endDate: z.coerce.date().optional(),
-    clientName: z.string().min(2).max(100).optional(),
-    projectBudget: z.number().positive().optional(),
+    projectName: z
+      .string()
+      .min(2, "Project name must be at least 2 characters")
+      .max(100, "Project name must not exceed 100 characters")
+      .optional(),
+    location: z
+      .string()
+      .min(2, "Location must be at least 2 characters")
+      .max(100, "Location must not exceed 100 characters")
+      .optional(),
+    startDate: z
+      .coerce.date({
+        errorMap: () => ({ message: "startDate must be a valid date" }),
+      })
+      .optional(),
+    endDate: z.coerce
+      .date({
+        errorMap: () => ({ message: "endDate must be a valid date" }),
+      })
+      .nullable()
+      .optional(),
+    clientName: z
+      .string()
+      .min(2, "Client name must be at least 2 characters")
+      .max(100, "Client name must not exceed 100 characters")
+      .optional(),
+    projectBudget: z
+      .number({ invalid_type_error: "projectBudget must be a number" })
+      .positive("projectBudget must be a positive number")
+      .optional(),
     status: z
-      .enum(["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"])
+      .enum(["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"], {
+        errorMap: () => ({ message: "status must be a valid value: PLANNING, ACTIVE, ON_HOLD, COMPLETED, or CANCELLED" }),
+      })
       .optional(),
   })
   .refine(
@@ -100,17 +126,17 @@ export const validateBody = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body);
 
   if (!result.success) {
+    const errors = result.error?.issues || [];
     return res.status(400).json({
       success: false,
-      message: "Validation error",
-      errors: result.error.errors.map((e) => ({
+      message: "Validation failed. Please check your input.",
+      errors: errors.map((e) => ({
         field: e.path.join("."),
         message: e.message,
       })),
     });
   }
 
-  // Replace req.body with Zod cleaned + coerced data
   req.body = result.data;
   next();
 };
