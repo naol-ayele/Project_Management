@@ -3,7 +3,8 @@
 
 const requestLogger = (req, res, next) => {
   const start = Date.now();
-  const roleInfo = req.user ? `[ROLE:${req.user.role}:${req.user.id}]` : "[unauthenticated]";
+  const role = req.user?.role || "unknown";
+  const roleInfo = req.user ? `[ROLE:${role}]` : "[unauthenticated]";
 
   console.log(`→ ${req.method} ${req.path} ${roleInfo}`);
 
