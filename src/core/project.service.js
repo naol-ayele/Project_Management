@@ -254,4 +254,81 @@ export const projectService = {
       projectName: project.projectName,
     };
   },
+
+  /**
+   * Updates an existing project with provided fields.
+   * Uses whitelist authorization — only explicitly permitted
+   * roles can update, everything else is denied by default.
+   *
+   * COMPANY_ADMIN: can update any company project
+   * PROJECT_MANAGER: can only update their own projects
+   * All others: denied even if they reach this method
+   *
+   * @param {object} params
+   * @param {number} params.projectId
+   * @param {number} params.companyId
+   * @param {number} params.userId
+   * @param {string} params.role
+   * @param {object} params.data - Validated update fields
+   * @returns {object} Updated project with progress
+   */
+  updateProject: async ({ projectId, companyId, userId, role, data }) => {
+    // Verify project exists and belongs to the company
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, companyId },
+    });
+
+    if (!project) return null;
+
+    // Whitelist authorization — deny by default
+    if (role === ROLES.COMPANY_ADMIN) {
+      // Can update any project in their company
+    } else if (role === ROLES.PROJECT_MANAGER) {
+      // Can only update projects they own
+      if (project.ownerUserId !== userId) {
+        throw createError(
+          "You do not have permission to update this project.",
+          403,
+        );
+      }
+    } else {
+      // Any other role is explicitly denied
+      throw createError(
+        "You do not have permission to update this project.",
+        403,
+      );
+    }
+
+    // Build updateData object — only map provided fields
+    const updateData = {};
+    if (data.projectName !== undefined) updateData.projectName = data.projectName;
+    if (data.location !== undefined) updateData.location = data.location;
+    if (data.startDate !== undefined) updateData.startDate = parseDate(data.startDate);
+    if (data.endDate !== undefined) updateData.endDate = data.endDate !== null ? parseDate(data.endDate) : null;
+    if (data.clientName !== undefined) updateData.clientName = data.clientName;
+    if (data.projectBudget !== undefined) updateData.projectBudget = data.projectBudget;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    const updated = await prisma.project.update({
+      where: { id: projectId },
+      data: updateData,
+      include: {
+        progress: true,
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: { tasks: true },
+        },
+      },
+    });
+
+    return serializeProject(updated);
+  },
 };
