@@ -6,9 +6,14 @@ const errorHandler = (err, req, res, next) => {
   console.error(`[ErrorHandler] ${req.method} ${req.path}:`, err);
 
   const statusCode = err.statusCode || 500;
+  const isProd = process.env.NODE_ENV === "production";
+  const isServerError = statusCode >= 500;
   const response = {
     success: false,
-    message: err.message || "Internal server error.",
+    message:
+      isProd && isServerError
+        ? "Internal server error."
+        : err.message || "Internal server error.",
   };
 
   if (process.env.NODE_ENV === "development") {
