@@ -622,6 +622,208 @@ describe("Project API Integration Tests", () => {
     });
   });
 
+  describe("PATCH /projects/:id - Update Project", () => {
+    let updateTestProjectId;
+
+    beforeEach(async () => {
+      const payload = createProjectPayload({ projectName: "Update Test Project" });
+      const response = await request(app)
+        .post("/projects")
+        .set(HEADERS.admin)
+        .send(payload);
+      updateTestProjectId = response.body.data.id;
+    });
+
+    describe("Success cases", () => {
+      test("COMPANY_ADMIN can update any project", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ projectName: "Updated Project Name" });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe("Project updated successfully.");
+        expect(response.body.data.projectName).toBe("Updated Project Name");
+      });
+
+      test("PROJECT_MANAGER can update their own project", async () => {
+        const managerPayload = createProjectPayload({ projectName: "Manager Own Update Project" });
+        const createResponse = await request(app)
+          .post("/projects")
+          .set(HEADERS.manager)
+          .send(managerPayload);
+        const managerProjectId = createResponse.body.data.id;
+
+        const response = await request(app)
+          .patch(`/projects/${managerProjectId}`)
+          .set(HEADERS.manager)
+          .send({ projectName: "Manager Updated Name" });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.projectName).toBe("Manager Updated Name");
+      });
+
+      test("partial update — only provided fields change", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ location: "New Location" });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.location).toBe("New Location");
+        expect(response.body.data.projectName).toBe("Update Test Project");
+      });
+
+      test("can update project status to ACTIVE", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ status: "ACTIVE" });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.status).toBe("ACTIVE");
+      });
+
+      test("can update projectBudget", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ projectBudget: 500000 });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.projectBudget).toBe("500000");
+      });
+    });
+
+    describe("RBAC - Forbidden (403)", () => {
+      test("PROJECT_MANAGER cannot update another manager's project", async () => {
+        const adminPayload = createProjectPayload({ projectName: "Admin Own Update Project" });
+        const createResponse = await request(app)
+          .post("/projects")
+          .set(HEADERS.admin)
+          .send(adminPayload);
+        const adminProjectId = createResponse.body.data.id;
+
+        const response = await request(app)
+          .patch(`/projects/${adminProjectId}`)
+          .set(HEADERS.manager)
+          .send({ projectName: "Hacked Name" });
+
+        expect(response.status).toBe(403);
+        expect(response.body.success).toBe(false);
+      });
+
+      test("SITE_ENGINEER cannot update projects", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.engineer)
+          .send({ projectName: "Engineer Name" });
+
+        expect(response.status).toBe(403);
+        expect(response.body.success).toBe(false);
+      });
+
+      test("SITE_SUPERVISOR cannot update projects", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.supervisor)
+          .send({ projectName: "Supervisor Name" });
+
+        expect(response.status).toBe(403);
+        expect(response.body.success).toBe(false);
+      });
+    });
+
+    describe("Validation errors (400)", () => {
+      test("projectName too short", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ projectName: "A" });
+
+        expect(response.status).toBe(400);
+        if (response.body.errors) {
+          expect(response.body.errors.some(e => e.field === "projectName")).toBe(true);
+        }
+      });
+
+      test("endDate before startDate", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({
+            startDate: "2024-12-31",
+            endDate: "2024-06-01",
+          });
+
+        expect(response.status).toBe(400);
+        if (response.body.errors) {
+          expect(response.body.errors.some(e => e.field === "endDate")).toBe(true);
+        }
+      });
+
+      test("invalid status value", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ status: "INVALID_STATUS" });
+
+        expect(response.status).toBe(400);
+        if (response.body.errors) {
+          expect(response.body.errors.some(e => e.field === "status")).toBe(true);
+        }
+      });
+
+      test("negative projectBudget", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .set(HEADERS.admin)
+          .send({ projectBudget: -1000 });
+
+        expect(response.status).toBe(400);
+        if (response.body.errors) {
+          expect(response.body.errors.some(e => e.field === "projectBudget")).toBe(true);
+        }
+      });
+    });
+
+    describe("Not Found (404)", () => {
+      test("returns 404 for non-existent project ID (99999)", async () => {
+        const response = await request(app)
+          .patch("/projects/99999")
+          .set(HEADERS.admin)
+          .send({ projectName: "Non Existent" });
+
+        expect(response.status).toBe(404);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toBe("Project not found.");
+      });
+
+      test("returns 400 for invalid project ID (0)", async () => {
+        const response = await request(app)
+          .patch("/projects/0")
+          .set(HEADERS.admin)
+          .send({ projectName: "Invalid ID" });
+
+        expect(response.status).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toBe("Invalid project ID.");
+      });
+    });
+
+    describe("Authentication errors (401)", () => {
+      test("unauthenticated request returns 401", async () => {
+        const response = await request(app)
+          .patch(`/projects/${updateTestProjectId}`)
+          .send({ projectName: "Unauthenticated Update" });
+
+        expect(response.status).toBe(401);
+      });
+    });
+  });
+
   describe("Assignment filtering for restricted roles", () => {
     test("SITE_ENGINEER can see project after being assigned a task", async () => {
       const payload = createProjectPayload({ projectName: "Assigned Project" });
