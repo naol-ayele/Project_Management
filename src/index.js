@@ -7,6 +7,8 @@ export { projectController } from "./core/project.controller.js";
 export { default as projectRouter } from "./routes/project.routes.js";
 export { default as authenticate } from "./middleware/authenticate.js";
 export { default as authorize } from "./middleware/authorize.js";
+export { default as requestLogger } from "./middleware/requestLogger.js";
+export { default as errorHandler } from "./middleware/errorHandler.js";
 export {
   validateBody,
   createProjectSchema,
