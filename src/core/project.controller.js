@@ -152,4 +152,49 @@ export const projectController = {
       return handleError(res, error, "deleteProject");
     }
   },
+
+  // PATCH /projects/:id
+  updateProject: async (req, res) => {
+    try {
+      const projectId = Number(req.params.id);
+      const { id: userId, companyId, role } = req.user;
+
+      if (!projectId || isNaN(projectId) || projectId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid project ID.",
+        });
+      }
+
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "User is not associated with a company.",
+        });
+      }
+
+      const updated = await projectService.updateProject({
+        projectId,
+        companyId,
+        userId,
+        role,
+        data: req.body,
+      });
+
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          message: "Project not found.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Project updated successfully.",
+        data: updated,
+      });
+    } catch (error) {
+      return handleError(res, error, "updateProject");
+    }
+  },
 };
