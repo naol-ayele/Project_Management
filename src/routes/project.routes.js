@@ -5,6 +5,7 @@ import { projectController } from "../core/project.controller.js";
 import {
   validateBody,
   createProjectSchema,
+  updateProjectSchema,
 } from "../validation/project.validation.js";
 import authenticate from "../middleware/authenticate.js";
 import authorize from "../middleware/authorize.js";
@@ -48,6 +49,16 @@ router.delete(
   "/:id",
   authorize(...PROJECT_MANAGE_ROLES),
   projectController.deleteProject,
+);
+
+// PATCH /projects/:id — update project
+// Only COMPANY_ADMIN and PROJECT_MANAGER
+// PROJECT_MANAGER can only update their own
+router.patch(
+  "/:id",
+  authorize(...PROJECT_MANAGE_ROLES),
+  validateBody(updateProjectSchema),
+  projectController.updateProject,
 );
 
 export default router;
