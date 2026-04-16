@@ -7,7 +7,7 @@ import { handleError } from "../utils/errors.js";
 
 export const projectController = {
   // POST /projects
-  createProject: async (req, res) => {
+  createProject: async (req, res, hooks = {}) => {
     try {
       const ownerUserId = req.user.id;
       const companyId = req.user.companyId;
@@ -19,11 +19,19 @@ export const projectController = {
         });
       }
 
+      if (hooks?.beforeCreate) {
+        hooks.beforeCreate(req);
+      }
+
       const project = await projectService.createProject({
         ownerUserId,
         companyId,
         data: req.body,
       });
+
+      if (hooks?.afterCreate) {
+        hooks.afterCreate(project, req);
+      }
 
       return res.status(201).json({
         success: true,
@@ -108,7 +116,7 @@ export const projectController = {
   },
 
   // DELETE /projects/:id
-  deleteProject: async (req, res) => {
+  deleteProject: async (req, res, hooks = {}) => {
     try {
       const projectId = Number(req.params.id);
       const { id: userId, companyId, role } = req.user;
@@ -139,6 +147,10 @@ export const projectController = {
           success: false,
           message: "Project not found.",
         });
+      }
+
+      if (hooks?.beforeDelete) {
+        hooks.beforeDelete(deleted, req);
       }
 
       return res.status(200).json({
