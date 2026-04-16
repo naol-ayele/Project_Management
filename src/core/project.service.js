@@ -1,8 +1,11 @@
 // src/core/project.service.js
 
 import prisma from "../utils/prisma.js";
+import { createPrismaAdapter } from "../adapters/index.js";
 import { ROLES, RESTRICTED_VIEW_ROLES } from "../utils/roles.js";
 import { createError } from "../utils/errors.js";
+
+const defaultAdapter = createPrismaAdapter(prisma);
 
 // ─────────────────────────────────────────
 // HELPERS
@@ -60,51 +63,11 @@ export const projectService = {
    * @param {number} params.ownerUserId - ID of the creating user
    * @param {number} params.companyId - ID of the company
    * @param {object} params.data - Validated project fields
+   * @param {object} params.adapter - Optional database adapter
    * @returns {object} Created project with progress
    */
-  createProject: async ({ ownerUserId, companyId, data }) => {
-    const result = await prisma.$transaction(async (tx) => {
-      // Step 1 — Create the project
-      const project = await tx.project.create({
-        data: {
-          ownerUserId,
-          companyId,
-          projectName: data.projectName,
-          location: data.location,
-          startDate: parseDate(data.startDate),
-          endDate: data.endDate ? parseDate(data.endDate) : null,
-          clientName: data.clientName,
-          projectBudget: data.projectBudget,
-          status: data.status ?? "PLANNING",
-        },
-        include: {
-          owner: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              role: true,
-            },
-          },
-        },
-      });
-
-      // Step 2 — Initialize progress automatically at 0
-      // Guarantees analytics always has a record to read
-      const progress = await tx.projectProgress.create({
-        data: {
-          projectId: project.id,
-          completionPercentage: 0,
-          totalTasks: 0,
-          tasksCompleted: 0,
-        },
-      });
-
-      return { ...project, progress };
-    });
-
-    return serializeProject(result);
+  createProject: async ({ ownerUserId, companyId, data, adapter = defaultAdapter }) => {
+    return adapter.createProject({ ownerUserId, companyId, data });
   },
 
   /**
@@ -117,40 +80,12 @@ export const projectService = {
    * @param {number} params.companyId
    * @param {number} params.userId
    * @param {string} params.role
+   * @param {object} params.adapter - Optional database adapter
    * @returns {object[]} Array of serialized projects
    */
-  getAllProjects: async ({ companyId, userId, role }) => {
-    // Build role-based where clause
-    const where = RESTRICTED_VIEW_ROLES.includes(role)
-      ? {
-          companyId,
-          tasks: {
-            some: { assigneeId: userId },
-          },
-        }
-      : { companyId };
-
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        progress: true,
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-        _count: {
-          select: { tasks: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return projects.map(serializeProject);
+  getAllProjects: async ({ companyId, userId, role, adapter = defaultAdapter }) => {
+    const roleIsRestricted = RESTRICTED_VIEW_ROLES.includes(role);
+    return adapter.findProjects({ companyId, assigneeId: userId, roleIsRestricted });
   },
 
   /**
@@ -163,42 +98,17 @@ export const projectService = {
    * @param {number} params.companyId
    * @param {number} params.userId
    * @param {string} params.role
+   * @param {object} params.adapter - Optional database adapter
    * @returns {object|null} Serialized project or null
    */
-  getProjectById: async ({ projectId, companyId, userId, role }) => {
-    const where = RESTRICTED_VIEW_ROLES.includes(role)
-      ? {
-          id: projectId,
-          companyId,
-          tasks: {
-            some: { assigneeId: userId },
-          },
-        }
-      : { id: projectId, companyId };
-
-    const project = await prisma.project.findFirst({
-      where,
-      include: {
-        progress: true,
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-        _count: {
-          select: {
-            tasks: true,
-          },
-        },
-      },
+  getProjectById: async ({ projectId, companyId, userId, role, adapter = defaultAdapter }) => {
+    const roleIsRestricted = RESTRICTED_VIEW_ROLES.includes(role);
+    return adapter.findProjectWithTasks({
+      id: projectId,
+      companyId,
+      assigneeId: userId,
+      roleIsRestricted,
     });
-
-    if (!project) return null;
-    return serializeProject(project);
   },
 
   /**
@@ -218,13 +128,11 @@ export const projectService = {
    * @param {number} params.companyId
    * @param {number} params.userId
    * @param {string} params.role
+   * @param {object} params.adapter - Optional database adapter
    * @returns {object} Deleted project id and name
    */
-  deleteProject: async ({ projectId, companyId, userId, role }) => {
-    // Verify project exists and belongs to the company
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, companyId },
-    });
+  deleteProject: async ({ projectId, companyId, userId, role, adapter = defaultAdapter }) => {
+    const project = await adapter.findProjectById({ id: projectId, companyId });
 
     if (!project) return null;
 
@@ -244,10 +152,7 @@ export const projectService = {
       );
     }
 
-    // Delete — cascade handles tasks and progress automatically
-    await prisma.project.delete({
-      where: { id: projectId },
-    });
+    await adapter.deleteProject({ id: projectId });
 
     return {
       id: projectId,
@@ -270,13 +175,11 @@ export const projectService = {
    * @param {number} params.userId
    * @param {string} params.role
    * @param {object} params.data - Validated update fields
+   * @param {object} params.adapter - Optional database adapter
    * @returns {object} Updated project with progress
    */
-  updateProject: async ({ projectId, companyId, userId, role, data }) => {
-    // Verify project exists and belongs to the company
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, companyId },
-    });
+  updateProject: async ({ projectId, companyId, userId, role, data, adapter = defaultAdapter }) => {
+    const project = await adapter.findProjectById({ id: projectId, companyId });
 
     if (!project) return null;
 
@@ -309,26 +212,6 @@ export const projectService = {
     if (data.projectBudget !== undefined) updateData.projectBudget = data.projectBudget;
     if (data.status !== undefined) updateData.status = data.status;
 
-    const updated = await prisma.project.update({
-      where: { id: projectId },
-      data: updateData,
-      include: {
-        progress: true,
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-        _count: {
-          select: { tasks: true },
-        },
-      },
-    });
-
-    return serializeProject(updated);
+    return adapter.updateProject({ id: projectId, updateData });
   },
 };
