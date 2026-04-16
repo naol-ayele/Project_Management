@@ -9,6 +9,8 @@ export { default as authenticate } from "./middleware/authenticate.js";
 export { default as authorize } from "./middleware/authorize.js";
 export { default as requestLogger } from "./middleware/requestLogger.js";
 export { default as errorHandler } from "./middleware/errorHandler.js";
+export { createProjectRouter } from "./factory/index.js";
+export { createPrismaAdapter } from "./adapters/index.js";
 export {
   validateBody,
   createProjectSchema,
