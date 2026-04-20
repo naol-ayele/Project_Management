@@ -1,0 +1,19 @@
+{
+  "name": "demo-app",
+  "version": "1.0.0",
+  "description": "Demo application showing how to consume the project management component",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@project-mgmt/core": "*",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
