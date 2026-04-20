@@ -1,38 +1,17 @@
 {
-  "name": "project_management",
+  "name": "project-management-monorepo",
   "version": "1.0.0",
-  "description": "A reusable Project Management component for Node.js/Express applications",
-  "main": "src/index.js",
+  "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "db:studio": "prisma studio",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
-  },
-  "keywords": [
-    "project-management",
-    "component",
-    "reusable",
-    "express",
-    "prisma"
+  "workspaces": [
+    "packages/core",
+    "packages/demo-app"
   ],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@prisma/client": "^6.19.3",
-    "dotenv": "^17.4.0",
-    "express": "^5.2.1",
-    "prisma": "^6.19.3",
-    "zod": "^4.3.6"
-  },
-  "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "jest": "^30.3.0",
-    "nodemon": "^3.1.14",
-    "supertest": "^7.2.2"
+  "scripts": {
+    "dev:core": "npm run dev --workspace=packages/core",
+    "dev:demo": "npm run dev --workspace=packages/demo-app",
+    "test": "npm run test --workspace=packages/core",
+    "test:watch": "npm run test:watch --workspace=packages/core",
+    "install:all": "npm install"
   }
 }
