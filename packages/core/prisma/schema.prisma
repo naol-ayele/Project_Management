@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum UserRole {
+  COMPANY_ADMIN
+  PROJECT_MANAGER
+  SITE_ENGINEER
+  SITE_SUPERVISOR
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String   @unique
+  role      UserRole
+  companyId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownedProjects Project[]     @relation("ProjectOwner")
+  assignedTasks ProjectTask[] @relation("TaskAssignee")
+
+  @@index([companyId])
+  @@index([role])
+  @@map("users")
+}
+
+model Project {
+  id            Int           @id @default(autoincrement())
+  companyId     Int
+  ownerUserId   Int
+  projectName   String
+  location      String
+  startDate     DateTime
+  endDate       DateTime?
+  clientName    String
+  projectBudget Decimal       @db.Decimal(15, 2)
+  status        ProjectStatus @default(PLANNING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  owner    User             @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+  progress ProjectProgress?
+  tasks    ProjectTask[]
+
+  @@index([companyId])
+  @@index([ownerUserId])
+  @@map("projects")
+}
+
+model ProjectProgress {
+  id                   Int      @id @default(autoincrement())
+  projectId            Int      @unique
+  completionPercentage Decimal  @default(0) @db.Decimal(5, 2)
+  totalTasks           Int      @default(0)
+  tasksCompleted       Int      @default(0)
+  lastUpdated          DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_progress")
+}
+
+model ProjectTask {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  assigneeId  Int
+  title       String
+  description String?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee User    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@map("project_tasks")
+}
