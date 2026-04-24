@@ -1,21 +1,18 @@
 // src/server.js
-// Standalone demo server
-// Shows how to plug the component into any Express app
 
 import express from "express";
 import dotenv from "dotenv";
 import { projectRouter } from "./index.js";
 import requestLogger from "./middleware/requestLogger.js";
 import errorHandler from "./middleware/errorHandler.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger.js";
 
 dotenv.config();
 
 const app = express();
 
 app.use(express.json());
-
-// Request logging - before routes
-app.use(requestLogger);
 
 // Health check
 app.get("/health", (req, res) => {
@@ -26,17 +23,34 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Mount the project component at /projects
-// This is all any app needs to integrate this component
+// Swagger UI — BEFORE 404 handler
+// Disable CSP headers for swagger (swagger-ui-express requires inline styles/scripts)
+app.use("/api-docs", (req, res, next) => {
+  res.removeHeader("Content-Security-Policy");
+  next();
+});
+
+app.use("/api-docs", swaggerUi.serve);
+app.get("/api-docs", swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: "@conwise/project-management API Docs",
+  swaggerOptions: {
+    persistAuthorization: true,
+  },
+}));
+// Request logging — before routes
+app.use(requestLogger);
+// Mount the project component
 app.use("/projects", projectRouter);
 
-// 404 handler - after routes
-app.use((req, res) => res.status(404).json({
-  success: false,
-  message: `Route ${req.method} ${req.path} not found.`,
-}));
+// 404 handler — AFTER all real routes
+app.use((req, res) =>
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} not found.`,
+  }),
+);
 
-// Global error handler - LAST
+// Global error handler — LAST
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
@@ -44,6 +58,7 @@ app.listen(PORT, () => {
   console.log(`Project Management Component running on port ${PORT}`);
   console.log(`Health: http://localhost:${PORT}/health`);
   console.log(`Projects: http://localhost:${PORT}/projects`);
+  console.log(`API Docs: http://localhost:${PORT}/api-docs`);
 });
 
 export default app;
