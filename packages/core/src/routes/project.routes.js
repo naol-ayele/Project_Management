@@ -272,8 +272,8 @@ router.post(
   projectController.createProject,
 );
 
-// GET /projects — list all projects
 // All roles — but SITE_ENGINEER and SITE_SUPERVISOR
+// GET /projects — list all projects
 // only see projects they are assigned to
 router.get(
   "/",
