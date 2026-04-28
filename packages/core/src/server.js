@@ -24,19 +24,25 @@ app.get("/health", (req, res) => {
 });
 
 // Swagger UI — BEFORE 404 handler
-// Disable CSP headers for swagger (swagger-ui-express requires inline styles/scripts)
+// Use a targeted CSP for Swagger UI to allow only the inline assets Swagger needs.
 app.use("/api-docs", (req, res, next) => {
-  res.removeHeader("Content-Security-Policy");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' http://localhost:3000;",
+  );
   next();
 });
 
 app.use("/api-docs", swaggerUi.serve);
-app.get("/api-docs", swaggerUi.setup(swaggerSpec, {
-  customSiteTitle: "@conwise/project-management API Docs",
-  swaggerOptions: {
-    persistAuthorization: true,
-  },
-}));
+app.get(
+  "/api-docs",
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: "@conwise/project-management API Docs",
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  }),
+);
 // Request logging — before routes
 app.use(requestLogger);
 // Mount the project component
