@@ -45,7 +45,11 @@ const options = {
             startDate: { type: "string", format: "date-time" },
             endDate: { type: "string", format: "date-time", nullable: true },
             clientName: { type: "string", example: "ABC Construction PLC" },
-            projectBudget: { type: "string", example: "5000000.00" },
+            projectBudget: {
+              type: "number",
+              example: 5000000,
+              description: "Project budget amount in cents",
+            },
             status: {
               type: "string",
               enum: ["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"],
@@ -133,7 +137,11 @@ const options = {
             startDate: { type: "string", format: "date" },
             endDate: { type: "string", format: "date", nullable: true },
             clientName: { type: "string", minLength: 2, maxLength: 100 },
-            projectBudget: { type: "number" },
+            projectBudget: {
+              type: "number",
+              example: 5000000,
+              description: "Project budget amount in cents",
+            },
             status: {
               type: "string",
               enum: ["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"],
