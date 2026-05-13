@@ -13,7 +13,6 @@ The reusable Project Management component for Node.js/Express applications.
 - **Package name**: `@project-management`
 - **Purpose**: Create, list, view, and delete construction projects with RBAC
 
-See [packages/core/README.md](packages/core/README.md) for details.
 
 ### packages/demo-app
 
